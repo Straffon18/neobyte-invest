@@ -1,0 +1,34 @@
+name: Actualizar datos de bolsa
+
+on:
+  schedule:
+    # Cada 30 min de lunes a viernes, de 7:30 a 15:00 hora de CDMX (bolsa abierta)
+    - cron: "*/30 13-21 * * 1-5"
+    # Una vez al día de noche, para cerrar con los precios finales
+    - cron: "15 3 * * *"
+  workflow_dispatch: {}   # botón "Run workflow" para actualizar a mano
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-datos
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet yfinance
+      - run: python scripts/update.py
+      - name: Guardar datos nuevos
+        run: |
+          git config user.name "neobyte-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --staged --quiet || (git commit -m "Datos actualizados $(date -u +'%Y-%m-%d %H:%M') UTC" && git push)
